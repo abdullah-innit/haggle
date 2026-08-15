@@ -1,0 +1,5 @@
+google-adk[a2a]
+sse-starlette
+uvicorn
+python-dotenv
+httpx
