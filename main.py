@@ -35,7 +35,7 @@ from agents.user_agent import create_user_agent
 load_dotenv()
 
 # ── Constants ──────────────────────────────────────────────────────────
-COUNTERPARTY_HOST = "localhost"
+COUNTERPARTY_HOST = "127.0.0.1"
 COUNTERPARTY_PORT = 8001
 COUNTERPARTY_URL = f"http://{COUNTERPARTY_HOST}:{COUNTERPARTY_PORT}"
 MAX_ROUNDS = 10
@@ -185,19 +185,28 @@ async def negotiate(
     env = os.environ.copy()
     env["COUNTERPARTY_CURRENT_PRICE"] = str(current_price)
     env["COUNTERPARTY_FLOOR_PRICE"] = str(floor_price)
+    env["PYTHONIOENCODING"] = "utf-8"
 
+    server_log = open("counterparty_server.log", "w", encoding="utf-8")
     server_proc = subprocess.Popen(
         [sys.executable, "counterparty_server.py", "--port", str(COUNTERPARTY_PORT)],
         env=env,
         cwd=os.path.dirname(os.path.abspath(__file__)),
-        
-    )
+        stdout=server_log,
+        stderr=server_log,
+)
 
     try:
         # ── 2. Readiness check ─────────────────────────────────────────
         if not wait_for_server(COUNTERPARTY_URL):
             print(f"{C.RED}ERROR: CounterpartyAgent failed to start. Aborting.{C.RESET}")
             return
+
+        # ── DEBUG: Print the agent card to verify the advertised URL ───
+        agent_card_url = f"{COUNTERPARTY_URL}{AGENT_CARD_WELL_KNOWN_PATH}"
+        card_resp = httpx.get(agent_card_url, timeout=5.0)
+        print(f"\n{C.CYAN}🔎 Agent card from {agent_card_url}:{C.RESET}")
+        print(json.dumps(card_resp.json(), indent=2))
 
         # ── 3. Create UserAgent + Runner ───────────────────────────────
         user_agent = create_user_agent(
@@ -352,7 +361,7 @@ async def negotiate(
         except subprocess.TimeoutExpired:
             server_proc.kill()
         print(f"{C.DIM}🛑 CounterpartyAgent server stopped.{C.RESET}")
-
+        server_log.close()
 
 # ── CLI entry point ───────────────────────────────────────────────────
 def main():

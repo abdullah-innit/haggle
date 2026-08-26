@@ -3,3 +3,4 @@ sse-starlette
 uvicorn
 python-dotenv
 httpx
+pytest

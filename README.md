@@ -98,3 +98,12 @@ Haggle is a **Taskmaster** project: it doesn't just talk about a chore, it does 
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
+
+## Running tests
+
+```bash
+pytest -v
+```
+
+Covers JSON-response parsing and agent instruction construction, 
+including regression tests for two real bugs hit during development.

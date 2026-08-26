@@ -32,10 +32,22 @@ counterparty = create_counterparty_agent(
     floor_price=_floor_price,
 )
 
-# `to_a2a` wraps the agent in a Starlette ASGI app with:
-#   - /.well-known/agent.json  (agent card for discovery)
-#   - A2A JSON-RPC endpoint    (for receiving tasks)
-app = to_a2a(counterparty)
+
+def _build_app(host: str = "127.0.0.1", port: int = 8001) -> "Starlette":
+    """Build the A2A Starlette app with the correct advertised address.
+
+    `to_a2a` bakes a `rpc_url` into the agent card it generates.  If we
+    don't pass the real host/port the card defaults to localhost:8000,
+    which doesn't match where uvicorn actually listens.
+    """
+    # Use 127.0.0.1 as the *advertised* host even when uvicorn binds to
+    # 0.0.0.0 — clients need a routable address, not the wildcard.
+    card_host = "127.0.0.1" if host == "0.0.0.0" else host
+    return to_a2a(counterparty, host=card_host, port=port)
+
+
+# Module-level `app` so `uvicorn counterparty_server:app` still works.
+app = _build_app()
 
 
 # ── Standalone entry point ─────────────────────────────────────────────
@@ -44,6 +56,10 @@ if __name__ == "__main__":
     parser.add_argument("--host", default="0.0.0.0", help="Bind host")
     parser.add_argument("--port", type=int, default=8001, help="Bind port")
     args = parser.parse_args()
+
+    # Rebuild with the actual CLI-supplied host/port so the agent card
+    # advertises the correct address.
+    app = _build_app(host=args.host, port=args.port)
 
     print(f"🏢 CounterpartyAgent A2A server starting on http://{args.host}:{args.port}")
     print(f"   Floor price: ${_floor_price:.2f} | Current price: ${_current_price:.2f}")
