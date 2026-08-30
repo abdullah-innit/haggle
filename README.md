@@ -8,6 +8,7 @@
   <img src="https://img.shields.io/badge/Firestore-Native-FFA000?logo=firebase&logoColor=white" />
   <img src="https://img.shields.io/badge/tests-15%20passing-brightgreen" />
   <img src="https://img.shields.io/badge/license-MIT-lightgrey" />
+  <img src="https://img.shields.io/badge/Live-Dashboard-3fb950?logo=googlecloud&logoColor=white" />
 </p>
 
 <p align="center"><b>Built for the All Things Agentic Hackathon — Taskmaster track</b></p>
@@ -17,6 +18,7 @@
 Nobody wants to spend twenty minutes on the phone haggling over a subscription bill. **Haggle does it for you.**
 
 Give it a list of services, current prices, and targets — it researches real competitor pricing, negotiates round-by-round against an AI playing each retention department, and comes back with a concrete total saved. Verified run: **3 services, 3 deals, $16.00/mo saved, $192/year — negotiated autonomously, end to end, on Google Cloud.**
+🔗 **[Live dashboard](https://haggle-dashboard-535623739933.us-central1.run.app)** — real negotiation history, updated after every run.
 
 ## How it works
 
