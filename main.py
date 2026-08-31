@@ -142,7 +142,7 @@ def extract_json(text: str) -> dict | None:
 
 
 # ── Agent runner helper ────────────────────────────────────────────────
-async def run_agent(runner: InMemoryRunner, user_id: str, session_id: str, message: str, retries: int = 3, pace_seconds: float = 8.0) -> str:
+async def run_agent(runner: InMemoryRunner, user_id: str, session_id: str, message: str, retries: int = 3, pace_seconds: float = 0.0) -> str:
     """Send a message to an agent and collect its full text response, with retry and pacing."""
     content = Content(role="user", parts=[Part.from_text(text=message)])
     for attempt in range(1, retries + 1):
@@ -158,14 +158,15 @@ async def run_agent(runner: InMemoryRunner, user_id: str, session_id: str, messa
                         if hasattr(part, "text") and part.text:
                             full_response.append(part.text)
             result = "".join(full_response)
-            await asyncio.sleep(pace_seconds)
+            if pace_seconds > 0:
+                await asyncio.sleep(pace_seconds)
             return result
         except Exception as e:
             if attempt == retries:
                 raise
             msg = str(e)
             is_rate_limit = "RESOURCE_EXHAUSTED" in msg or "429" in msg or "status_code" in msg
-            wait = 20 * attempt if is_rate_limit else 2 ** attempt
+            wait = 0
             print(f"{C.YELLOW}⚠️  {type(e).__name__}, retrying in {wait}s... (attempt {attempt}/{retries}){C.RESET}")
             await asyncio.sleep(wait)
 
