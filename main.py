@@ -28,7 +28,7 @@ from google.adk.agents.remote_a2a_agent import (
 from google.adk.runners import InMemoryRunner
 from google.genai.types import Content, Part
 from google.genai.errors import APIError
-
+from storage import save_negotiation_result, get_lifetime_savings
 from agents.user_agent import create_user_agent
 
 # ── Load environment ───────────────────────────────────────────────────
@@ -200,7 +200,15 @@ async def negotiate(
         # ── 2. Readiness check ─────────────────────────────────────────
         if not wait_for_server(COUNTERPARTY_URL):
             print(f"{C.RED}ERROR: CounterpartyAgent failed to start. Aborting.{C.RESET}")
-            return
+            abort_result = {
+                "service": service_name,
+                "deal_reached": False,
+                "original_price": current_price,
+                "final_price": None,
+                "error": "server_failed_to_start",
+            }
+            save_negotiation_result(abort_result)
+            return abort_result
 
         # ── DEBUG: Print the agent card to verify the advertised URL ───
         agent_card_url = f"{COUNTERPARTY_URL}{AGENT_CARD_WELL_KNOWN_PATH}"
@@ -352,7 +360,14 @@ async def negotiate(
 
         # ── 8. Final outcome ───────────────────────────────────────────
         print_outcome(deal_reached, final_price, current_price)
-
+        result = {
+            "service": service_name,
+            "deal_reached": deal_reached,
+            "original_price": current_price,
+            "final_price": final_price,
+        }
+        save_negotiation_result(result)
+        return result
     finally:
         # ── 9. Cleanup: terminate the subprocess ───────────────────────
         server_proc.terminate()
@@ -362,6 +377,73 @@ async def negotiate(
             server_proc.kill()
         print(f"{C.DIM}🛑 CounterpartyAgent server stopped.{C.RESET}")
         server_log.close()
+
+def compute_batch_totals(results: list[dict]) -> dict:
+    """Pure calculation, kept separate from printing so it's directly testable."""
+    total_original = 0.0
+    total_final = 0.0
+    deals = 0
+    for r in results:
+        total_original += r["original_price"]
+        if r.get("error"):
+            total_final += r["original_price"]
+            continue
+        final = r["final_price"] if r["deal_reached"] else r["original_price"]
+        total_final += final
+        if r["deal_reached"]:
+            deals += 1
+    total_savings = total_original - total_final
+    pct = (total_savings / total_original * 100) if total_original else 0
+    return {
+        "total_original": total_original,
+        "total_final": total_final,
+        "total_savings": total_savings,
+        "savings_pct": pct,
+        "deals_reached": deals,
+        "annual_savings": total_savings * 12,
+    }
+
+
+def print_batch_summary(results: list[dict]):
+    totals = compute_batch_totals(results)
+    print(f"\n{C.BOLD}{C.CYAN}{'=' * 60}")
+    print(f"  BATCH SUMMARY — {len(results)} negotiations")
+    print(f"{'=' * 60}{C.RESET}\n")
+    for r in results:
+        if r.get("error"):
+            print(f"  ⚠️  {r['service']:<15} SERVER ERROR — skipped")
+            continue
+        final = r["final_price"] if r["deal_reached"] else r["original_price"]
+        icon = "✅" if r["deal_reached"] else "❌"
+        print(f"  {icon} {r['service']:<15} ${r['original_price']:.2f} → ${final:.2f}/mo")
+    print(f"\n{C.GREEN}{C.BOLD}  Deals reached: {totals['deals_reached']}/{len(results)}{C.RESET}")
+    print(f"{C.GREEN}{C.BOLD}  Total monthly savings: ${totals['total_savings']:.2f} "
+          f"({totals['savings_pct']:.0f}% off ${totals['total_original']:.2f}){C.RESET}")
+    print(f"{C.GREEN}{C.BOLD}  Annual savings: ${totals['annual_savings']:.2f}/year{C.RESET}\n")
+
+
+async def run_batch(config_path: str):
+    """Negotiate multiple services sequentially, then print a combined
+    savings summary. Sequential is deliberate — see negotiate() above,
+    it reuses the same subprocess/port cleanly between runs."""
+    with open(config_path) as f:
+        services = json.load(f)
+
+    results = []
+    for i, svc in enumerate(services, 1):
+        print(f"\n{C.BOLD}{C.CYAN}{'#' * 60}")
+        print(f"  NEGOTIATION {i}/{len(services)}: {svc['service']}")
+        print(f"{'#' * 60}{C.RESET}")
+        result = await negotiate(
+            service_name=svc["service"],
+            current_price=svc["current_price"],
+            target_price=svc["target_price"],
+            max_price=svc["max_price"],
+            floor_price=svc.get("floor_price", svc["current_price"] * 0.5),
+        )
+        results.append(result)
+
+    print_batch_summary(results)
 
 # ── CLI entry point ───────────────────────────────────────────────────
 def main():
@@ -373,6 +455,7 @@ Examples:
   python main.py
   python main.py --service "Spotify" --current-price 16.99 --target-price 9.99 --max-price 13.99
   python main.py --service "Netflix" --floor-price 14.99
+  python main.py --batch services.json
         """,
     )
     parser.add_argument("--service", default="Netflix", help="Service name (default: Netflix)")
@@ -383,18 +466,30 @@ Examples:
         "--floor-price", type=float, default=11.99,
         help="Counterparty's hidden floor price (default: 11.99)",
     )
+    parser.add_argument(
+        "--batch", type=str, default=None,
+        help="Path to a JSON file listing multiple services to negotiate sequentially",
+    )
     args = parser.parse_args()
 
     banner()
-    asyncio.run(
-        negotiate(
-            service_name=args.service,
-            current_price=args.current_price,
-            target_price=args.target_price,
-            max_price=args.max_price,
-            floor_price=args.floor_price,
+    if args.batch:
+        asyncio.run(run_batch(args.batch))
+    else:
+        asyncio.run(
+            negotiate(
+                service_name=args.service,
+                current_price=args.current_price,
+                target_price=args.target_price,
+                max_price=args.max_price,
+                floor_price=args.floor_price,
+            )
         )
-    )
+
+    stats = get_lifetime_savings()
+    if stats["total_negotiations"] > 0:
+        print(f"\n📊 Lifetime (Firestore): {stats['deals_reached']} deals across "
+              f"{stats['total_negotiations']} negotiations, ${stats['total_savings']:.2f}/mo saved total\n")
 
 
 if __name__ == "__main__":

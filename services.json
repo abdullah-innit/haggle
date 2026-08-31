@@ -1,0 +1,23 @@
+[
+  {
+    "service": "Netflix",
+    "current_price": 22.99,
+    "target_price": 12.99,
+    "max_price": 18.99,
+    "floor_price": 11.99
+  },
+  {
+    "service": "Spotify",
+    "current_price": 16.99,
+    "target_price": 9.99,
+    "max_price": 13.99,
+    "floor_price": 9.49
+  },
+  {
+    "service": "Disney+",
+    "current_price": 13.99,
+    "target_price": 8.99,
+    "max_price": 11.99,
+    "floor_price": 8.49
+  }
+]
