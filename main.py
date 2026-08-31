@@ -211,12 +211,6 @@ async def negotiate(
             save_negotiation_result(abort_result)
             return abort_result
 
-        # ── DEBUG: Print the agent card to verify the advertised URL ───
-        agent_card_url = f"{COUNTERPARTY_URL}{AGENT_CARD_WELL_KNOWN_PATH}"
-        card_resp = httpx.get(agent_card_url, timeout=5.0)
-        print(f"\n{C.CYAN}🔎 Agent card from {agent_card_url}:{C.RESET}")
-        print(json.dumps(card_resp.json(), indent=2))
-
         # ── 3. Create UserAgent + Runner ───────────────────────────────
         user_agent = create_user_agent(
             service_name=service_name,
