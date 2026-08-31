@@ -17,8 +17,8 @@
 
 Nobody wants to spend twenty minutes on the phone haggling over a subscription bill. **Haggle does it for you.**
 
-Give it a list of services, current prices, and targets — it researches real competitor pricing, negotiates round-by-round against an AI playing each retention department, and comes back with a concrete total saved. Verified run: **3 services, 3 deals, $16.00/mo saved, $192/year — negotiated autonomously, end to end, on Google Cloud.**
-🔗 **[Live dashboard](https://haggle-dashboard-535623739933.us-central1.run.app)** — real negotiation history, updated after every run.
+Give it a list of services, current prices, and targets — it researches real competitor pricing, negotiates round-by-round against an AI playing each retention department, and comes back with a concrete total saved. Verified run: **3 services, 3 deals, $16.00/mo saved, $192/year, negotiated autonomously, end to end, on Google Cloud.**
+🔗 **[Live dashboard](https://haggle-dashboard-535623739933.us-central1.run.app)**, real negotiation history, updated after every run.
 
 ## How it works
 
